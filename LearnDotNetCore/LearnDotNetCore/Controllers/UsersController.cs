@@ -45,21 +45,26 @@ namespace API.Controllers
         [Authorize(AuthenticationSchemes = "Bearer")]
         [HttpGet]
         //public async Task<List<User>> GetAll()
-        public List<UserVM> GetAll()
+        public async Task<List<UserVM>> GetAll()
         {
             List<UserVM> list = new List<UserVM>();
-            foreach (var item in _context.Users)
+            //var user = new UserVM();
+            var getData = await _context.RoleUsers.Include("User").Include("Role").ToListAsync();
+            if (getData.Count == 0)
             {
-                var role = _context.RoleUsers.Where(ru => ru.UserId == item.Id).FirstOrDefault();
-                var roler = _context.Roles.Where(r => r.Id == role.RoleId).FirstOrDefault();
-                UserVM user = new UserVM()
+                return null;
+            }
+            foreach (var item in getData)
+            {
+                var user = new UserVM()
                 {
-                    Id = item.Id,
-                    UserName = item.UserName,
-                    Email = item.Email,
-                    Password = item.PasswordHash,
-                    Phone = item.PhoneNumber,
-                    RoleName = roler.Name
+                    Id = item.User.Id,
+                    UserName = item.User.UserName,
+                    Email = item.User.Email,
+                    Password = item.User.PasswordHash,
+                    Phone = item.User.PhoneNumber,
+                    RoleName = item.Role.Name,
+                    VerifyCode = item.User.SecurityStamp,
                 };
                 list.Add(user);
             }
@@ -69,14 +74,20 @@ namespace API.Controllers
         [HttpGet("{id}")]
         public UserVM GetID(string id)
         {
-            var getId = _context.Users.Find(id);
-            UserVM user = new UserVM()
+            var getData = _context.RoleUsers.Include("User").Include("Role").SingleOrDefault(x => x.UserId == id);
+            if (getData == null || getData.Role == null || getData.User == null)
             {
-                Id = getId.Id,
-                UserName = getId.UserName,
-                Email = getId.Email,
-                Password = getId.PasswordHash,
-                Phone = getId.PhoneNumber
+                return null;
+            }
+            var user = new UserVM()
+            {
+                Id = getData.User.Id,
+                UserName = getData.User.UserName,
+                Email = getData.User.Email,
+                Password = getData.User.PasswordHash,
+                Phone = getData.User.PhoneNumber,
+                RoleId = getData.Role.Id,
+                RoleName = getData.Role.Name
             };
             return user;
         }
@@ -122,7 +133,7 @@ namespace API.Controllers
                 var uRole = new RoleUser
                 {
                     UserId = user.Id,
-                    RoleId = "2"
+                    RoleId = "1"
                 };
                 _context.RoleUsers.Add(uRole);
                 var emp = new Employee
@@ -191,65 +202,25 @@ namespace API.Controllers
                 }
                 else
                 {
-                    //var user = new UserVM();
-                    //user.Id = getUserRole.User.Id;
-                    //user.UserName = getUserRole.User.UserName;
-                    //user.Email = getUserRole.User.Email;
-                    //user.Password = getUserRole.User.PasswordHash;
-                    //user.Phone = getUserRole.User.PhoneNumber;
-                    //user.RoleName = getUserRole.Role.Name;
-                    //user.VerifyCode = getUserRole.User.SecurityStamp;
-                    //if (user != null)
-                    //{
-                    //    var claims = new List<Claim>
-                    //                {
-                    //                    new Claim ("UserName", user.UserName),
-                    //                    new Claim("Email", user.Email)
-                    //                };
-
-                    //    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-
-                    //    var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-                    //    var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], claims, expires: DateTime.UtcNow.AddSeconds(30), signingCredentials: signIn);
-
-                    //    return Ok(new JwtSecurityTokenHandler().WriteToken(token));
-                    //}
                     if (getUserRole != null)
                     {
-                        if (getUserRole.User.SecurityStamp != null)
+                        var user = new UserVM()
                         {
-                            var claims = new List<Claim> {
-                                new Claim("Id", getUserRole.User.Id),
-                                new Claim("Username", getUserRole.User.UserName),
-                                new Claim("Email", getUserRole.User.Email),
-                                new Claim("RoleName", getUserRole.Role.Name),
-                                new Claim("VerifyCode", getUserRole.User.SecurityStamp)
-                            };
-                            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-                            var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-                            var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], claims, expires: DateTime.UtcNow.AddDays(1), signingCredentials: signIn);
-                            //var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], claims, expires: DateTime.UtcNow.AddDays(1), signingCredentials: signIn);
-                            return Ok(new JwtSecurityTokenHandler().WriteToken(token));
-                        }
-                        else
-                        {
-                            var claims = new List<Claim> {
-                                new Claim("Id", getUserRole.User.Id),
-                                new Claim("Username", getUserRole.User.UserName),
-                                new Claim("Email", getUserRole.User.Email),
-                                new Claim("RoleName", getUserRole.Role.Name)
-                            };
-                            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-                            var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-                            var token = new JwtSecurityToken(_configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], claims, expires: DateTime.UtcNow.AddDays(1), signingCredentials: signIn);
-                            return Ok(new JwtSecurityTokenHandler().WriteToken(token));
-                        }
+                            Id = getUserRole.User.Id,
+                            UserName = getUserRole.User.UserName,
+                            Email = getUserRole.User.Email,
+                            Password = getUserRole.User.PasswordHash,
+                            Phone = getUserRole.User.PhoneNumber,
+                            RoleId = getUserRole.Role.Id,
+                            RoleName = getUserRole.Role.Name,
+                            VerifyCode = getUserRole.User.SecurityStamp,
+                        };
+                        return Ok(GetJWT(user));
                     }
                     return BadRequest("Invalid credentials");
                 }
             }
-            return BadRequest(500);
+            return BadRequest("Data Not Valid");
         }
 
         [HttpPost]
@@ -265,29 +236,48 @@ namespace API.Controllers
                 }
                 else if (userVM.VerifyCode != getUserRole.User.SecurityStamp)
                 {
-                    return BadRequest(new { msg = "Your Code is Wrong" });
+                    return BadRequest("Your Code is Wrong");
                 }
                 else
                 {
-                    //var user = new UserVM();
-                    //user.Id = getUserRole.User.Id;
-                    //user.Username = getUserRole.User.UserName;
-                    //user.Email = getUserRole.User.Email;
-                    //user.Password = getUserRole.User.PasswordHash;
-                    //user.Phone = getUserRole.User.PhoneNumber;
-                    //user.RoleName = getUserRole.Role.Name;
-                    //return StatusCode(200, user);
-                    return StatusCode(200, new
+                    getUserRole.User.SecurityStamp = null;
+                    _context.SaveChanges();
+                    var user = new UserVM()
                     {
-                        Username = getUserRole.User.UserName,
+                        Id = getUserRole.User.Id,
+                        UserName = getUserRole.User.UserName,
                         Email = getUserRole.User.Email,
+                        Password = getUserRole.User.PasswordHash,
+                        Phone = getUserRole.User.PhoneNumber,
+                        RoleId = getUserRole.Role.Id,
                         RoleName = getUserRole.Role.Name,
-                        //Email = getUserRole.User.Email,
-                        //Password = getUserRole.User.PasswordHash
-                    });
+                        VerifyCode = getUserRole.User.SecurityStamp,
+                    };
+                    return StatusCode(200, GetJWT(user));
                 }
             }
-            return BadRequest(500);
+            return BadRequest("Data Not Valid");
+        }
+
+        private string GetJWT(UserVM userVM)
+        {
+            var claims = new List<Claim> {
+                            new Claim("Id", userVM.Id),
+                            new Claim("UserName", userVM.UserName),
+                            new Claim("Email", userVM.Email),
+                            new Claim("RoleName", userVM.RoleName),
+                            new Claim("VerifyCode", userVM.VerifyCode == null ? "" : userVM.VerifyCode),
+                        };
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var token = new JwtSecurityToken(
+                            _configuration["Jwt:Issuer"],
+                            _configuration["Jwt:Audience"],
+                            claims,
+                            expires: DateTime.UtcNow.AddDays(1),
+                            signingCredentials: signIn
+                        );
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }
