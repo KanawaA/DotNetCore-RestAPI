@@ -1,5 +1,6 @@
 ﻿var table = null;
 var arrDepart = [];
+var seldep = [];
 
 $(document).ready(function () {
     debugger;
@@ -15,18 +16,22 @@ $(document).ready(function () {
             dataSrc: "",
         },
 
-        "columnDefs": [{
-            sortable: false,
-            "class": "index",
-            targets: 0
-        }],
-        order: [[1, 'asc']],
-        fixedColumns: true,
+        //dom: 'Bfrtip',
+        //buttons: [
+        //    'copy', 'csv', 'excel', 'pdf', 'print'
+        //],
 
         "columns": [
-            { "data": null },
+            {
+                "data": "id",
+                render: function (data, type, row, meta) {
+                    //console.log(row);
+                    return meta.row + meta.settings._iDisplayStart + 1;
+                    //return meta.row + 1;
+                }
+            },
             { "data": "name" },
-            { "data": "department.name"},
+            { "data": "department.name" },
             {
                 "data": "createDate",
                 'render': function (jsonDate) {
@@ -48,27 +53,22 @@ $(document).ready(function () {
             },
             {
                 "sortable": false,
-                "data" : "id",
-                "render": function (data, type, row)
-                {
-                    console.log(row);
+                "render": function (data, type, row) {
+                    //console.log(row);
                     $('[data-toggle="tooltip"]').tooltip();
-                    return '<button class="btn btn-outline-warning btn-circle" data-placement="left" data-toggle="tooltip" data-animation="false" title="Edit" onclick="return GetById(' + data + ')" ><i class="fa fa-lg fa-edit"></i></button>'
+                    return '<button class="btn btn-outline-warning btn-circle" data-placement="left" data-toggle="tooltip" data-animation="false" title="Edit" onclick="return GetById(' + row.id + ')" ><i class="fa fa-lg fa-edit"></i></button>'
                         + '&nbsp;'
-                        + '<button class="btn btn-outline-danger btn-circle" data-placement="right" data-toggle="tooltip" data-animation="false" title="Delete" onclick="return Delete(' + data + ')" ><i class="fa fa-lg fa-times"></i></button>'
+                        + '<button class="btn btn-outline-danger btn-circle" data-placement="right" data-toggle="tooltip" data-animation="false" title="Delete" onclick="return Delete(' + row.id + ')" ><i class="fa fa-lg fa-times"></i></button>'
                 }
             }
         ],
 
         dom: 'Bfrtip',
         buttons: [
-            'copy',
-            'csv',
-            'excel',
             {
                 extend: 'pdfHtml5',
-                text: '<i class="fas fa-file-pdf"></i> PDF',
-                className: 'btn btn-info',
+                text: '<i class="fas fa-file-pdf" data-placement="Bottom" data-toggle="tooltip" data-animation="false" title="PDF" ></i>',
+                className: 'btn btn-danger',
                 title: 'Division List',
                 filename: 'cek ' + moment(),
                 exportOptions: {
@@ -113,37 +113,73 @@ $(document).ready(function () {
                     });
                 }
             },
-            'print'
+            {
+                extend: 'excelHtml5',
+                text: '<i class="fas fa-file-excel" data-placement="Bottom" data-toggle="tooltip" data-animation="false" title="Excel" ></i>',
+                className: 'btn btn-success',
+                title: 'Division List',
+                filename: 'cek ' + moment(),
+                exportOptions: {
+                    columns: [0, 1, 2, 3, 4],
+                    search: 'applied',
+                    order: 'applied',
+                    modifier: {
+                        page: 'current',
+                    },
+                },
+                customize: function (excel) {
+                    debugger;
+                    var sheet = excel.xl.worksheets['sheet1.xml'];
+                    // jQuery selector to add a border
+                    //$('col c[r*="10"]', sheet).attr('s', '25');
+                    $('c[r=A2] t', sheet).text('No.');
+                    $('c[r=C2] t', sheet).text('Department');
+                }
+            },
+            {
+                extend: 'csvHtml5',
+                text: '<i class="fas fa-file-csv" data-placement="Bottom" data-toggle="tooltip" data-animation="false" title="CSV"></i>',
+                className: 'btn btn-info',
+                title: 'Division List',
+                filename: 'cek ' + moment(),
+                exportOptions: {
+                    columns: [0, 1, 2, 3, 4],
+                    search: 'applied',
+                    order: 'applied',
+                    modifier: {
+                        page: 'current',
+                    },
+                },
+                customize: function (excel) {
+                    debugger;
+                    var sheet = excel.xl.worksheets['sheet1.xml'];
+                    // jQuery selector to add a border
+                    //$('col c[r*="10"]', sheet).attr('s', '25');
+                    $('c[r=A2] t', sheet).text('No.');
+                    $('c[r=C2] t', sheet).text('Department');
+                }
+            }
         ],
 
-        initComplete: function ()
-        {
+        initComplete: function () {
             this.api().columns(2).every(function () {
                 var column = this;
-                var select = $('<select><option value="">All Departments</option></select>')
+                var select = $('<select><option value="">AllDepartments</option></select>')
                     .appendTo($(column.header()).empty())
                     .on('change', function () {
                         var val = $.fn.dataTable.util.escapeRegex(
                             $(this).val()
                         );
-
                         column
                             .search(val ? '^' + val + '$' : '', true, false)
                             .draw();
                     });
-
                 column.data().unique().sort().each(function (d, j) {
-                    select.append('<option value="' + d + '">' + d + '</option>')
+                    select.append($('<option value="' + d + '">' + d + '</option>'));
                 });
             });
         }
     });
-    table.on('order.dt search.dt', function ()
-    {
-        table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
-            cell.innerHTML = i + 1;
-        });
-    }).draw();
 });
 
 function ClearScreen() {
